@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Can You Draw a Perfect Circle?</title>
+
+<style>
+html, body {
+  margin: 0;
+  padding: 0;
+  background: #000;
+  height: 100%;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  color: white;
+  user-select: none;
+}
+
+/* CANVAS */
+canvas {
+  display: block;
+  touch-action: none;
+  cursor: crosshair;
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+/* HEADER */
+.header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  padding: 20px;
+  text-align: center;
+  z-index: 10;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent);
+  pointer-events: none;
+}
+
+.header h1 {
+  margin: 0;
+  font-size: 2.5rem;
+  font-weight: 700;
+  background: linear-gradient(90deg, #00f5ff, #9d4edd);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 0 30px rgba(157, 78, 221, 0.3);
+}
+
+.header p {
+  margin: 8px 0 0;
+  opacity: 0.7;
+  font-size: 1rem;
+}
+
+/* STATS BAR */
+.stats {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: rgba(20, 20, 30, 0.8);
+  padding: 12px 20px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  z-index: 10;
+}
+
+.stats span {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #00f5ff;
+}
+
+/* RESULT OVERLAY */
+#overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 20;
+  background: rgba(0, 0, 0, 0.7);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+#overlay.show {
+  opacity: 1;
+  pointer-events: all;
+}
+
+#result {
+  text-align: center;
+  opacity: 0;
+  transform: scale(0.8) translateY(20px);
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  background: rgba(10, 10, 20, 0.95);
+  padding: 40px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5),
+              0 0 0 1px rgba(0, 245, 255, 0.1);
+  max-width: 400px;
+  width: 90%;
+}
+
+#result.show {
+  opacity: 1;
+  transform: scale(1) translateY(0);
+}
+
+#score {
+  font-size: 4.5rem;
+  font-weight: 800;
+  margin-bottom: 10px;
+  background: linear-gradient(90deg, #00f5ff, #9d4edd);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+#message {
+  font-size: 1.3rem;
+  margin: 10px 0 30px;
+  opacity: 0.9;
+  line-height: 1.4;
+}
+
+.buttons {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+}
+
+#retry, #share {
+  padding: 12px 28px;
+  border-radius: 50px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: none;
+  min-width: 120px;
+}
+
+#retry {
+  background: linear-gradient(90deg, #00f5ff, #9d4edd);
+  color: white;
+}
+
+#share {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+#retry:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(0, 245, 255, 0.3);
+}
+
+#share:hover {
+  background: rgba(255, 255, 255, 0.15);
+  transform: translateY(-2px);
+}
+
+/* INSTRUCTIONS */
+.instructions {
+  position: fixed;
+  bottom: 20px;
+  left: 0;
+  width: 100%;
+  text-align: center;
+  padding: 15px;
+  opacity: 0.5;
+  font-size: 0.9rem;
+  z-index: 10;
+  pointer-events: none;
+}
+
+/* CIRCLE GUIDE */
+.circle-guide {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 300px;
+  height: 300px;
+  border: 2px dashed rgba(0, 245, 255, 0.2);
+  border-radius: 50%;
+  pointer-events: none;
+  opacity: 0.3;
+  z-index: 1;
+}
+
+/* ANIMATIONS */
+@keyframes pulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.6; }
+}
+
+.pulse {
+  animation: pulse 2s infinite ease-in-out;
+}
+
+@keyframes celebrate {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+.celebrate {
+  animation: celebrate 0.5s ease;
+}
+
+/* MOBILE OPTIMIZATION */
+@media (max-width: 768px) {
+  .header h1 {
+    font-size: 2rem;
+  }
+  
+  .stats {
+    top: 10px;
+    right: 10px;
+    padding: 8px 12px;
+  }
+  
+  .stats span {
+    font-size: 1rem;
+  }
+  
+  #score {
+    font-size: 3.5rem;
+  }
+  
+  #message {
+    font-size: 1.1rem;
+  }
+  
+  .buttons {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  #retry, #share {
+    width: 100%;
+  }
+  
+  .circle-guide {
+    width: 250px;
+    height: 250px;
+  }
+}
+
+@media (max-width: 480px) {
+  .header h1 {
+    font-size: 1.7rem;
+  }
+  
+  #result {
+    padding: 30px 20px;
+  }
+  
+  .circle-guide {
+    width: 200px;
+    height: 200px;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<div class="header">
+  <h1>Can You Draw a Perfect Circle?</h1>
+  <p>Draw a circle by dragging your mouse or finger. Release to see your score.</p>
+</div>
+
+<div class="stats">
+  Best: <span id="bestScore">0%</span>
+</div>
+
+<div class="circle-guide pulse"></div>
+
+<canvas id="canvas"></canvas>
+
+<div id="overlay">
+  <div id="result">
+    <div id="score"></div>
+    <div id="message"></div>
+    <div class="buttons">
+      <button id="retry">Try Again</button>
+      <button id="share">Share Score</button>
+    </div>
+  </div>
+</div>
+
+<div class="instructions">
+  Press anywhere to start drawing
+</div>
+
+<script>
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+const overlay = document.getElementById("overlay");
+const result = document.getElementById("result");
+const scoreEl = document.getElementById("score");
+const messageEl = document.getElementById("message");
+const retryBtn = document.getElementById("retry");
+const shareBtn = document.getElementById("share");
+const bestScoreEl = document.getElementById("bestScore");
+const instructions = document.querySelector(".instructions");
+
+let points = [];
+let drawing = false;
+let bestScore = 0;
+let hasDrawn = false;
+
+// Load best score from localStorage
+function loadBestScore() {
+  const saved = localStorage.getItem("circleBestScore");
+  if (saved) {
+    bestScore = parseFloat(saved);
+    bestScoreEl.textContent = `${bestScore.toFixed(1)}%`;
+  }
+}
+
+function resize() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  clearCanvas();
+}
+window.addEventListener("resize", resize);
+resize();
+
+function clearCanvas() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+}
+
+function getPosition(e) {
+  if (e.touches && e.touches.length > 0) {
+    const rect = canvas.getBoundingClientRect();
+    return { 
+      x: e.touches[0].clientX - rect.left,
+      y: e.touches[0].clientY - rect.top 
+    };
+  }
+  const rect = canvas.getBoundingClientRect();
+  return { 
+    x: e.clientX - rect.left,
+    y: e.clientY - rect.top 
+  };
+}
+
+function startDrawing(e) {
+  e.preventDefault();
+  points = [];
+  drawing = true;
+  hasDrawn = true;
+  overlay.classList.remove("show");
+  result.classList.remove("show");
+  instructions.style.opacity = "0.2";
+  clearCanvas();
+  
+  const pos = getPosition(e);
+  points.push(pos);
+  
+  // Draw first point
+  ctx.beginPath();
+  ctx.arc(pos.x, pos.y, 2, 0, Math.PI * 2);
+  ctx.fillStyle = "#00f5ff";
+  ctx.fill();
+}
+
+function draw(e) {
+  if (!drawing) return;
+  e.preventDefault();
+  
+  const pos = getPosition(e);
+  const prev = points[points.length - 1];
+  points.push(pos);
+  
+  // Draw line
+  ctx.strokeStyle = "#00f5ff";
+  ctx.lineWidth = 3;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  
+  ctx.beginPath();
+  ctx.moveTo(prev.x, prev.y);
+  ctx.lineTo(pos.x, pos.y);
+  ctx.stroke();
+  
+  // Draw glowing effect
+  ctx.shadowBlur = 15;
+  ctx.shadowColor = "#00f5ff";
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+}
+
+function stopDrawing() {
+  if (!drawing || points.length < 15) {
+    drawing = false;
+    return;
+  }
+  drawing = false;
+  evaluateCircle();
+}
+
+function evaluateCircle() {
+  // Calculate center
+  let sumX = 0, sumY = 0;
+  points.forEach(p => {
+    sumX += p.x;
+    sumY += p.y;
+  });
+  const centerX = sumX / points.length;
+  const centerY = sumY / points.length;
+  
+  // Calculate radii and average
+  const radii = [];
+  let sumRadii = 0;
+  points.forEach(p => {
+    const dx = p.x - centerX;
+    const dy = p.y - centerY;
+    const radius = Math.sqrt(dx * dx + dy * dy);
+    radii.push(radius);
+    sumRadii += radius;
+  });
+  const avgRadius = sumRadii / radii.length;
+  
+  // Calculate variance
+  let sumVariance = 0;
+  radii.forEach(r => {
+    sumVariance += Math.pow(r - avgRadius, 2);
+  });
+  const variance = sumVariance / radii.length;
+  const stdDev = Math.sqrt(variance);
+  
+  // Check closure (how close start and end are)
+  const start = points[0];
+  const end = points[points.length - 1];
+  const closureDist = Math.sqrt(
+    Math.pow(end.x - start.x, 2) + Math.pow(end.y - start.y, 2)
+  );
+  
+  // Calculate score
+  const variancePenalty = stdDev * 0.5;
+  const closurePenalty = closureDist * 0.15;
+  let score = 100 - variancePenalty - closurePenalty;
+  
+  // Additional penalty for very small circles
+  if (avgRadius < 50) {
+    score *= 0.9;
+  }
+  
+  // Ensure score is between 0 and 100
+  score = Math.max(0, Math.min(100, score));
+  score = Math.round(score * 10) / 10;
+  
+  // Draw ideal circle
+  drawIdealCircle(centerX, centerY, avgRadius);
+  
+  // Show result
+  showResult(score);
+  
+  // Update best score
+  if (score > bestScore) {
+    bestScore = score;
+    bestScoreEl.textContent = `${bestScore.toFixed(1)}%`;
+    localStorage.setItem("circleBestScore", bestScore);
+  }
+}
+
+function drawIdealCircle(cx, cy, r) {
+  ctx.strokeStyle = "rgba(180, 120, 255, 0.4)";
+  ctx.lineWidth = 3;
+  ctx.setLineDash([5, 5]);
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  
+  // Draw center point
+  ctx.beginPath();
+  ctx.arc(cx, cy, 3, 0, Math.PI * 2);
+  ctx.fillStyle = "rgba(180, 120, 255, 0.7)";
+  ctx.fill();
+}
+
+function showResult(score) {
+  let color = "#ff4d4d";
+  let msg = "That's more of an abstract shape.";
+  
+  if (score >= 98) {
+    color = "#00ff88";
+    msg = "Perfect! You must be a compass.";
+  } else if (score >= 95) {
+    color = "#4cffc0";
+    msg = "Incredibly close to perfect!";
+  } else if (score >= 90) {
+    color = "#9dff9d";
+    msg = "Excellent circle!";
+  } else if (score >= 85) {
+    color = "#ffd966";
+    msg = "Very good circle!";
+  } else if (score >= 80) {
+    color = "#ffb347";
+    msg = "Good attempt!";
+  } else if (score >= 70) {
+    color = "#ff8c42";
+    msg = "Not bad, but room for improvement.";
+  } else if (score >= 60) {
+    color = "#ff6b6b";
+    msg = "Keep practicing!";
+  } else if (score >= 50) {
+    color = "#ff4d4d";
+    msg = "That's... a shape.";
+  }
+  
+  scoreEl.textContent = `${score}%`;
+  scoreEl.style.background = `linear-gradient(90deg, ${color}, ${color === "#00ff88" ? "#4cffc0" : "#ffd966"})`;
+  messageEl.textContent = msg;
+  
+  setTimeout(() => {
+    overlay.classList.add("show");
+    setTimeout(() => {
+      result.classList.add("show");
+      result.classList.add("celebrate");
+    }, 50);
+  }, 500);
+}
+
+function reset() {
+  points = [];
+  drawing = false;
+  clearCanvas();
+  overlay.classList.remove("show");
+  result.classList.remove("show");
+  instructions.style.opacity = "0.5";
+}
+
+function shareScore() {
+  const score = scoreEl.textContent;
+  const msg = messageEl.textContent;
+  const text = `I scored ${score} on the Perfect Circle Challenge! ${msg}`;
+  
+  if (navigator.share) {
+    navigator.share({
+      title: 'Perfect Circle Score',
+      text: text,
+      url: window.location.href
+    });
+  } else {
+    navigator.clipboard.writeText(text).then(() => {
+      messageEl.textContent = "Score copied to clipboard!";
+      setTimeout(() => showResult(parseFloat(score)), 2000);
+    });
+  }
+}
+
+// Event Listeners
+canvas.addEventListener("mousedown", startDrawing);
+canvas.addEventListener("mousemove", draw);
+canvas.addEventListener("mouseup", stopDrawing);
+canvas.addEventListener("mouseleave", stopDrawing);
+
+canvas.addEventListener("touchstart", startDrawing, { passive: false });
+canvas.addEventListener("touchmove", draw, { passive: false });
+canvas.addEventListener("touchend", stopDrawing);
+
+retryBtn.addEventListener("click", reset);
+shareBtn.addEventListener("click", shareScore);
+
+// Click canvas to reset when not drawing
+canvas.addEventListener("click", (e) => {
+  if (!drawing && hasDrawn) {
+    e.preventDefault();
+    reset();
+  }
+});
+
+// Prevent context menu
+canvas.addEventListener("contextmenu", (e) => e.preventDefault());
+
+// Prevent scrolling on touch devices
+document.addEventListener("touchmove", (e) => {
+  if (drawing) {
+    e.preventDefault();
+  }
+}, { passive: false });
+
+// Initialize
+loadBestScore();
+clearCanvas();
+
+// Draw initial guide
+setTimeout(() => {
+  const guide = document.querySelector(".circle-guide");
+  guide.style.transition = "all 0.5s ease";
+  guide.style.opacity = "0.3";
+}, 100);
+</script>
+
+</body>
+</html>
